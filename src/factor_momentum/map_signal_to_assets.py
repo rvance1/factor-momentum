@@ -32,7 +32,7 @@ def _prep_monthly (
         .alias('ret'),
         pl.col('market_cap').last()]
         +
-        [pl.col({fac}).mean() for fac in FACTORS]
+        [pl.col(fac).mean() for fac in FACTORS]
     )
     .sort(['barrid', 'month'])
     )

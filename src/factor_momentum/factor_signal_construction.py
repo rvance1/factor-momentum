@@ -1,7 +1,9 @@
-from sf_quant.data.factors import load_factors, get_factor_names
+from sf_quant.data.factors import load_factors
 import polars as pl
 import datetime as dt
 import numpy as np
+
+from .constants import FACTORS
 
 #TODO: docstring
 
@@ -9,10 +11,8 @@ import numpy as np
 def _prep_monthly (
         start: dt.date, end: dt.date
         ) -> pl.LazyFrame:
-    
-    factors = [fac for fac in get_factor_names(type='style') if not fac in ['USSLOWL_MOMENTUM','USSLOWL_LTREVRSL']]
 
-    daily = load_factors(start=start, end=end, factors=factors)
+    daily = load_factors(start=start, end=end, factors=FACTORS)
     daily = daily.unpivot(index='date', variable_name='factor', value_name='ret')
 
     return (daily.lazy().with_columns(
