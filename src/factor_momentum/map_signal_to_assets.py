@@ -1,18 +1,15 @@
 import polars as pl
 import numpy as np
-
-from sf_quant.data.exposures import load_exposures, get_exposures_columns
-from sf_quant.data.factors import get_factor_names
-from sf_quant.data.assets import load_assets, get_assets_columns
-
-import sf_quant.data as sfd
-
 import datetime as dt
 
-from factor_singal_construction import construct_factor_signal
+from sf_quant.data.exposures import load_exposures
+from sf_quant.data.assets import load_assets
+
+from .factor_signal_construction import construct_factor_signal
+from .constants import FACTORS
 
 
-FACTORS = [fac for fac in get_factor_names('style') if not fac in ['USSLOWL_MOMENTUM','USSLOWL_LTREVRSL']]
+#TODO: docstring
 
 
 def _prep_monthly (
@@ -40,7 +37,7 @@ def _prep_monthly (
     .sort(['barrid', 'month'])
     )
 
-def construct_mapped_signal (
+def construct_asset_signal (
         start: dt.date, end: dt.date, type: str
 ) -> pl.DataFrame:
     

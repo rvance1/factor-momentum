@@ -3,8 +3,6 @@ import polars as pl
 import datetime as dt
 import numpy as np
 
-import matplotlib.pyplot as plt
-
 #TODO: docstring
 
 
