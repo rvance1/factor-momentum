@@ -1,5 +1,12 @@
-from .factor_signal_construction import construct_factor_signal
-from .map_signal_to_assets import construct_asset_signal
-from .constants import FACTORS
+from ._wrappers import assetspace_signal_monthly, factorspace_signals_monthly
+from ._factor_signal_construction import construct_factor_signal_monthly
+from ._map_signal_to_assets import construct_asset_signal_monthly
+from ._constants import FACTORS
 
-__all__ = ["construct_factor_signal", "construct_asset_signal", "FACTORS"]
+__all__ = [
+    "assetspace_signal_monthly",
+    "factorspace_signals_monthly",
+    "construct_factor_signal_monthly", 
+    "construct_asset_signal_monthly", 
+    "FACTORS"
+    ]

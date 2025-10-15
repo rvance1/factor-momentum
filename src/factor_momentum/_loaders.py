@@ -1,0 +1,59 @@
+import polars as pl
+import datetime as dt
+import numpy as np
+
+from sf_quant.data.exposures import load_exposures
+from sf_quant.data.assets import load_assets
+from sf_quant.data.factors import load_factors
+
+from ._constants import FACTORS
+
+# TODO: Docstring
+
+
+def _load_monthly_asset_data (
+        start: dt.date, end: dt.date
+) -> pl.DataFrame:
+
+    columns = ['date', 'barrid'] + FACTORS
+
+    daily = load_assets(start=start, end=end, columns=['date', 'barrid', 'return', 'market_cap'], in_universe=True).join(
+        load_exposures(start=start, end=end, columns=columns, in_universe=True),
+        on=['barrid', 'date'],
+        how='inner'
+    ).sort(['barrid', 'date'])
+
+    return (daily.lazy().with_columns(
+        pl.col('date').dt.truncate('1mo').alias('month')
+    )
+    .group_by(['month', 'barrid']).agg(
+        [(np.log(1 + pl.col('return')*.01).sum())
+        .alias('ret'),
+        pl.col('market_cap').last()]
+        +
+        [pl.col(fac).mean() for fac in FACTORS]
+    )
+    .sort(['barrid', 'month'])
+    .collect()
+    )
+
+
+def _scan_monthly_factor_returns (
+        start: dt.date, end: dt.date
+        ) -> pl.LazyFrame:
+
+    daily = load_factors(start=start, end=end, factors=FACTORS)
+    daily = daily.unpivot(index='date', variable_name='factor', value_name='ret')
+
+    return (daily.lazy().with_columns(
+        pl.col('date').dt.truncate('1mo').alias('month')
+    )
+    .group_by(['factor', 'month']).agg(
+        (np.log(1 + pl.col('ret')*.01).sum())
+        .alias('ret')
+    )
+    .sort(['factor', 'month'])
+    .with_columns(
+        pl.col('ret').shift(1).over('factor').alias('lag_ret')
+    )
+    )
