@@ -13,8 +13,10 @@ def construct_asset_signal_monthly (
 
     factor_signals_monthly_wide = (factor_signals_monthly.pivot(on='factor', index='month', values='signal'))
     
+    print("DEBUG: Merging....")
     merged = asset_data_monthly.join(factor_signals_monthly_wide, on='month', how='left', suffix='_signal')
 
+    print("DEBUG: Mapping....")
     prods = merged.with_columns(merged.columns)
     for fac in FACTORS:
         prods = prods.with_columns(
