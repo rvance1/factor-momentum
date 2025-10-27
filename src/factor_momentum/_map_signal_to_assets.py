@@ -26,8 +26,9 @@ def construct_asset_signal_monthly (
         pl.col('month'),
         pl.col('barrid'),
         pl.col('ret'),
+        pl.col('specific_risk'),
         pl.col('market_cap'),
-        prods[:, 4:18].sum_horizontal().alias('signal')
+        prods[:, 5:19].sum_horizontal().alias('signal')
     )
     .sort(['barrid', 'month'])
     )

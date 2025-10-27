@@ -17,7 +17,7 @@ def _load_monthly_asset_data (
 
     columns = ['date', 'barrid'] + FACTORS
 
-    daily = load_assets(start=start, end=end, columns=['date', 'barrid', 'return', 'market_cap'], in_universe=True).join(
+    daily = load_assets(start=start, end=end, columns=['date', 'barrid', 'return', 'market_cap', 'specific_risk'], in_universe=True).join(
         load_exposures(start=start, end=end, columns=columns, in_universe=True),
         on=['barrid', 'date'],
         how='inner'
@@ -29,7 +29,8 @@ def _load_monthly_asset_data (
     .group_by(['month', 'barrid']).agg(
         [(np.log(1 + pl.col('return')*.01).sum())
         .alias('ret'),
-        pl.col('market_cap').last()]
+        pl.col('market_cap').last(),
+        (np.sqrt(np.pow(pl.col('specific_risk'), 2).mean()))]
         +
         [pl.col(fac).mean() for fac in FACTORS]
     )
