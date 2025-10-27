@@ -1,12 +1,20 @@
 import polars as pl
 import numpy as np
 
+from ._constants import TYPES
+
 #TODO: require columns for each df, docstring
 
 def construct_factor_signal_monthly (
         monthly_factor_returns: pl.LazyFrame, type: str 
 ) -> pl.DataFrame:
 
+    if type not in TYPES:
+            raise ValueError(
+                f"Invalid type '{type}'. Must be one of these:  {', '.join(TYPES)}"
+            )
+    
+    
     if type == "cross section":
         return (monthly_factor_returns.with_columns(
             pl.col("lag_ret").rank('dense').over('month').alias('rank'),
@@ -49,4 +57,4 @@ def construct_factor_signal_monthly (
         )
     
     else:
-        raise ValueError(f"Invalid type: {type!r}. Must be 'cross section', 'rolling continuous', or 'rolling discrete'.")
+        raise NotImplementedError(f"Missing type: {type!r}.")
