@@ -21,9 +21,11 @@ def construct_factor_signal_monthly (
             pl.col('lag_ret').count().over('month').alias('count')
         )
         .with_columns(
-            pl.when(pl.col('rank') <= pl.col('count')*0.5)
+            pl.when(pl.col('rank') < pl.col('count')*0.5+0.5)
             .then(-1)
-            .otherwise(1)
+            .when(pl.col('rank') > pl.col('count')*0.5+0.5)
+            .then(1)
+            .otherwise(0)
             .alias('signal')
         )
         .collect()

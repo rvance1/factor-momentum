@@ -1,0 +1,4 @@
+  File "/home/boobus/projects/factor_momentum/backtest.py", line 30
+    gamma=2
+          ^
+SyntaxError: invalid syntax. Perhaps you forgot a comma?

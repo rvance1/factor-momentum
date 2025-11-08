@@ -58,3 +58,8 @@ def _scan_monthly_factor_returns (
         pl.col('ret').shift(1).over('factor').alias('lag_ret')
     )
     )
+
+def _scan_monthly_pc_returns (
+        start: dt.date, end: dt.date, pcs: list[int]
+) -> pl.LazyFrame:
+    pass

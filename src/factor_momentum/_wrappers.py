@@ -45,4 +45,6 @@ def alpha_monthly(
     .with_columns(
         pl.col('score').mul(pl.col('IC')).mul(pl.col('specific_risk')).alias('alpha')
     )
+    .rename({"month": "date"})
+    .select(['date', 'barrid', 'alpha'])
     )
