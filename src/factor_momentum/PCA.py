@@ -2,60 +2,162 @@ import polars as pl
 import numpy as np
 import datetime as dt
 
+from tqdm import tqdm
+
 from sklearn.decomposition import PCA
 from sklearn.preprocessing import StandardScaler
 
-
+#TODO: Docstring
 
 class RollingPCA:
-    def __init__(self, n_components: int, window: int):
+    def __init__(self, n_components: int, lookback_window: int):
         self.pca_model = PCA(n_components=n_components)
-        self.scalar = StandardScaler()
-        self.window = window
+        self.n_components = n_components
+        self.scaler = StandardScaler()
+        self.lookback = lookback_window
 
-        self.pca_loadings_matricies = {}
+        self.states = {}
+
     
-    def _fit_to_dates(
-            self, start: dt.date, end:dt.date, store_date: dt.date, factor_returns: pl.LazyFrame
+    #TODO: handle not enough lookback data
+    def fit_for_date(
+            self, date: dt.date, returns: pl.LazyFrame
             ) -> None:
+        """
+        Fit the PCA model for a specific reference date using a rolling
+        lookback window of past returns.
+        """
         
         window = (
-            factor_returns
-            .filter(pl.col('date').is_between(start, end, 'both'))
+            returns.filter(
+                pl.col('date').is_between(date-dt.timedelta(days=self.lookback),date-dt.timedelta(days=1))
+            )
+            .sort('date')
             .drop('date')
             .collect()
-            )
+            .to_numpy()
+        )
 
-        X = self.scalar.fit_transform(window)
+        X = self.scaler.fit_transform(window)
         self.pca_model.fit(X)
 
-        self.pca_loadings_matricies[store_date] = self.pca_model.components_
+        self.states[date] = {
+            "mean": self.scaler.mean_,
+            "scale": self.scaler.scale_,
+            "components": self.pca_model.components_,
+            "explained_var": self.pca_model.explained_variance_ratio_,
+        }
 
 
-    def _transform_date(self, date: dt.date, factor_returns: pl.LazyFrame) -> pl.DataFrame:
-        date_returns = (
-            factor_returns
-            .filter(pl.col('date').eq(date))
+    def transform_for_date(
+            self, date: dt.date, returns: pl.LazyFrame
+            ) -> np.ndarray:
+        """
+        Transform returns on a given date using the PCA
+        fitted at that date. Assumes PCA state exists for that date.
+        """
+
+        if date not in self.states:
+            raise ValueError(f"No PCA state stored for date {date}")
+        
+        state = self.states[date]
+
+        row = (
+            returns.filter(
+                pl.col('date').eq(date)
+            )
             .drop('date')
             .collect()
         )
 
-        pc_returns = (
-            pl.DataFrame(
-                self.pca_model.transform(date_returns.to_numpy())
-            )
-            .with_columns(
-                pl.lit(date)
-            )
+        if row.height != 1:
+            raise ValueError(f"Expected exactly one row for date {date}, got {row.height}")
+        
+        x = row.to_numpy().reshape(1, -1)
+        
+        x_scaled = (x-state['mean']) / state['scale']
+
+        return x_scaled @ state['components'].T
+    
+
+    def transform_chunk(
+            self, state_date: dt.date, returns_chunk: pl.LazyFrame
+            ) -> pl.DataFrame:
+        """
+        Transform all given returns using the PCA fitted for the 
+        specified date. Assumes PCA state exists for that date.
+        """
+
+        if state_date not in self.states:
+            raise ValueError(f"No PCA state stored for date {state_date}")
+        
+        state = self.states[state_date]
+
+        window = (
+            returns_chunk
+            .collect()
         )
 
-        return pc_returns
+        if window.height == 0:
+            raise ValueError(
+                f"No data found in rolling window ending on {state_date}. "
+                f"Expected at least 1 row, got {window.height}"
+            )
+        
+        X = window.drop('date').to_numpy()
+        
+        X_scaled = (X - state["mean"]) / state["scale"]
+        PCs = X_scaled @ state["components"].T
+
+        pc_cols = {f"pc{i}": PCs[:, i] for i in range(self.n_components)}
+
+        return window.select("date").with_columns(**pc_cols)
 
 
-    def fit_transform_rolling(
-            start: dt.date, end: dt.date, window: int
+    def fit_transform_rolling_monthly(
+            self, start: dt.date, end: dt.date, returns: pl.LazyFrame
     ) -> pl.DataFrame:
-        pass
+        
+        monthly_returns = (
+            returns
+            .with_columns(pl.col('date').dt.truncate('1mo').alias('month'))
+            .group_by('month')
+            .agg(pl.col('date').first())
+            .sort('date')
+        )
+
+        dates = (
+            monthly_returns
+            .drop('month')
+            .collect()
+        )['date'].to_list()
+
+
+        print("Fitting rolling PCA...")
+        for date in tqdm(dates[1:], desc="Rolling PCA"):
+            self.fit_for_date(date, returns)
+        
+        print("Transforming rolling PCA...")
+        pcs = []
+        for date in tqdm(dates[1:], desc="Transforming PCA"):            
+            
+            chunk = (
+                returns
+                .with_columns(pl.col('date').dt.truncate('1mo').alias('month'))
+                .filter(pl.col('month').eq(date.replace(day=1)))
+                .drop('month')
+                .sort('date')
+            )
+            
+            pcs.append(
+                self.transform_chunk(date, chunk)
+                .with_columns(
+                    pl.lit(date).alias('date')
+                )
+            )
+        
+        return pl.concat(pcs, how="vertical")
+
 
     def get_factor_weights_from_date(date: dt.date) -> np.ndarray[float]:
         
