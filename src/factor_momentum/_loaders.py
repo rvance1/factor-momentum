@@ -58,6 +58,7 @@ def _scan_monthly_factor_returns (
     .sort(['factor', 'month'])
     )
 
+
 def _scan_monthly_pc_returns (
         start: dt.date, end: dt.date, n_compenents: int, lookback_window: int
 ) -> pl.LazyFrame:
