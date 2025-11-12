@@ -52,10 +52,12 @@ def _scan_monthly_factor_returns (
         pl.col('ret').shift(1).over('factor').alias('lag_ret')
     )
     .group_by(['factor', 'month']).agg(
-        (np.log(1 + pl.col('ret')*.01).sum()).alias('ret'),
-        (np.log(1 + pl.col('lag_ret')*.01).sum()).alias('lag_ret')
+        (np.log(1 + pl.col('ret')*.01).sum()).alias('ret')
     )
     .sort(['factor', 'month'])
+    .with_columns(
+        pl.col('ret').shift(1).alias('lag_ret')
+    )
     )
 
 
