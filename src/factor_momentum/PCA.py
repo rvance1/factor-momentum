@@ -24,13 +24,13 @@ class RollingPCA:
             self, date: dt.date, returns: pl.LazyFrame
             ) -> None:
         """
-        Fit the PCA model for a specific reference date using a rolling
+        Fit the PCA model for a specific reference date using a 
         lookback window of past returns.
         """
         
         window = (
             returns.filter(
-                pl.col('date').is_between(date-dt.timedelta(days=self.lookback),date-dt.timedelta(days=1))
+                pl.col('date').is_between(date-dt.timedelta(days=self.lookback), date, "left")
             )
             .sort('date')
             .drop('date')
@@ -118,7 +118,7 @@ class RollingPCA:
             self, start: dt.date, end: dt.date, returns: pl.LazyFrame
     ) -> pl.DataFrame:
         
-        monthly_returns = (
+        returns_monthly = (
             returns
             .with_columns(pl.col('date').dt.truncate('1mo').alias('month'))
             .group_by('month')
@@ -127,7 +127,7 @@ class RollingPCA:
         )
 
         dates = (
-            monthly_returns
+            returns_monthly
             .drop('month')
             .collect()
         )['date'].to_list()
@@ -139,7 +139,7 @@ class RollingPCA:
         
         print("Transforming rolling PCA...")
         pcs = []
-        for date in tqdm(dates[1:], desc="Transforming PCA"):            
+        for date in tqdm(dates[1:], desc="Rolling PCA"):            
             
             chunk = (
                 returns

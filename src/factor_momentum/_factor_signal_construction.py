@@ -15,7 +15,7 @@ def construct_factor_signal_monthly (
             )
     
     
-    if type == "cross section":
+    if type == "1m cross-section":
         return (monthly_factor_returns.with_columns(
             pl.col("lag_ret").rank('dense').over('month').alias('rank'),
             pl.col('lag_ret').count().over('month').alias('count')
@@ -31,7 +31,7 @@ def construct_factor_signal_monthly (
         .collect()
         )
     
-    elif type == "rolling continuous":
+    elif type == "12m time-series continuous":
         return (monthly_factor_returns.with_columns(
             (pl.col('lag_ret'))
             .shift(1)
@@ -43,7 +43,7 @@ def construct_factor_signal_monthly (
         .collect()
         )
     
-    elif type == "rolling discrete":
+    elif type == "12m time-series discrete":
         return (monthly_factor_returns.with_columns(
             (pl.col('lag_ret'))
             .shift(1)
