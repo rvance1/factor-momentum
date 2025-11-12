@@ -10,7 +10,7 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
 1. Signal Construction Variations
   - [x] 't-1' cross-sectional
   - [x] t-1 to t-12 cross-sectional
-  - [ ] t-1 cross-sectional using principal compenents
+  - [x] t-1 cross-sectional using principal compenents
 
 2. Portfolio Contruction
  
