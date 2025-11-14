@@ -9,7 +9,7 @@ The working theory: mispricings at the factor level persist because information 
 This project was developed as part of the BYU Silver Fund, one of the nation’s oldest student-run investment funds.
 
 ### Methodology
-1. Signal Construction 
+1. **Signal Construction** 
   
   Principal Components are extracted from a 100-day rolling window using all of Barras style-factor returns (excluding momentum and reversal). 
 
@@ -19,18 +19,20 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
 
   $$
   \text{signal}_{pc,i,t} =
-  \begin{cases}
+  \left\{
+  \begin{array}{ll}
   1,  & \text{if } r_{i,t-1} > \mathrm{median}(r_{t-1}) \\
   0,  & \text{if } r_{i,t-1} = \mathrm{median}(r_{t-1}) \\
   -1, & \text{if } r_{i,t-1} < \mathrm{median}(r_{t-1})
-  \end{cases}
+  \end{array}
+  \right.
   $$
 
 
 
 
  
-2. Backtesting Framework
+2. **Backtesting Framework**
 
   **Weights:**
 
