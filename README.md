@@ -17,15 +17,13 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
   
   We then compute the 1-month cross sectional signal for PC returns (monthly frequency):
 
-  $$
+ $$
   \text{signal}_{pc,i,t} =
-  \left\{
-  \begin{array}{ll}
+  \begin{cases}
   1,  & \text{if } r_{i,t-1} > \mathrm{median}(r_{t-1}) \\
   0,  & \text{if } r_{i,t-1} = \mathrm{median}(r_{t-1}) \\
   -1, & \text{if } r_{i,t-1} < \mathrm{median}(r_{t-1})
-  \end{array}
-  \right.
+  \end{cases}
   $$
 
 
