@@ -74,13 +74,14 @@ def _scan_monthly_pc_returns (
     return (pcs.unpivot(index='date', variable_name='factor', value_name='ret').lazy()
     .with_columns(
         pl.col('date').dt.truncate('1mo').alias('mo'),
-        pl.col('ret').shift(1).over('factor').alias('lag_ret')
     )
     .group_by(['factor', 'mo']).agg(
         pl.col('date').first().alias('month'),
         (np.log(1 + pl.col('ret')*.01).sum()).alias('ret'),
-        (np.log(1 + pl.col('lag_ret')*.01).sum()).alias('lag_ret')
+    )
+    .sort(['factor', 'month'])
+    .with_columns(
+        pl.col('ret').shift(1).over('factor').alias('lag_ret')
     )
     .drop('mo')
-    .sort(['factor', 'month'])
     )

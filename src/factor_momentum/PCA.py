@@ -159,7 +159,7 @@ class RollingPCA:
         return pl.concat(pcs, how="vertical")
 
 
-    def get_factor_weights_from_date(date: dt.date) -> np.ndarray[float]:
+    def get_factor_weights_from_date(date: dt.date) -> np.ndarray:
         
         # L = pca_engine.pca_model.components_
         # pc_weights = [1,0,1,-1,-1]

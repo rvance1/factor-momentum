@@ -34,7 +34,8 @@ Each month, stocks are sorted into deciles based on their aggregate exposure to 
 
 As shown, when all eigenvectors of the factor return matrix are included, there is no consistent pattern of positive momentum across the higher deciles. The only robust observation is that **stocks with low exposure to any factor signal tend to perform poorly**, suggesting that weak factor participation is broadly associated with underperformance.
 
-
+Logspace Returns of the Top 5 Principal Compenents grouped as Winners/Losers (and Spread Portfolio)
+![PCA_returns](PCA_returns.png)
 
 ### Key Takeaways
 
