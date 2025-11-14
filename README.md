@@ -17,21 +17,21 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
 2. Backtesting Framework
 
   Alphas estimated with:
-  $$
-  \alpha_t = \text{IC}_t \cdot Z\big(\text{signal}_t\big) \cdot \sigma_{\text{residual},t}
-  $$
+$$
+\alpha_t = \text{IC}_t \cdot Z\big(\text{signal}_t\big) \cdot \sigma_{\text{residual},t}
+$$
 
   The residual risk compenent is computed ex-anti, and we assume a 0.05 information coefficient.
 
   At each time t, the optimal weights are:
-  $$
-  w^\* = \frac{1}{2\lambda} \Sigma^{-1} \mu.
-  $$
+$$
+w^\* = \frac{1}{2\lambda} \Sigma^{-1} \mu.
+$$
 
   We add a leverage constraint:
-  $$
-  \sum_{i=1}^{N} |w_i| \le 1.
-  $$
+$$
+\sum_{i=1}^{N} |w_i| \le 1.
+$$
   
   We use our estimated alpha in place of expected return (mu), and the covarience matrix is forcasted by Barra. 
   
