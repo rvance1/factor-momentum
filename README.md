@@ -9,17 +9,38 @@ The working theory: mispricings at the factor level persist because information 
 This project was developed as part of the BYU Silver Fund, one of the nation’s oldest student-run investment funds.
 
 ### Methodology
-1. Signal Construction Variations
+1. Signal Construction 
   - [x] 't-1' cross-sectional
   - [x] t-1 to t-12 cross-sectional
   - [x] t-1 cross-sectional using principal compenents (PCA)
-
-2. Portfolio Contruction
  
-3. Backtesting Framework
+2. Backtesting Framework
 
-4. Evaluation Metrics
-   - Mean Annual Return:
+  Alphas estimated with:
+  $$
+  \alpha_t = \text{IC}_t \cdot Z\big(\text{signal}_t\big) \cdot \sigma_{\text{residual},t}
+  $$
+
+  The residual risk compenent is computed ex-anti, and we assume a 0.05 information coefficient.
+
+  At each time t, the optimal weights are:
+  $$
+  w^\* = \frac{1}{2\lambda} \Sigma^{-1} \mu.
+  $$
+
+  We add a leverage constraint:
+  $$
+  \sum_{i=1}^{N} |w_i| \le 1.
+  $$
+  
+  We use our estimated alpha in place of expected return (mu), and the covarience matrix is forcasted by Barra. 
+  
+  We rebalance monthly. Transaction costs are not accounted for in the optimization (next project). 
+
+
+
+3. Evaluation Metrics
+   - Mean Annual Return: 
    - Sharpe:
    - Turnover:
    - IR:
@@ -36,6 +57,10 @@ As shown, when all eigenvectors of the factor return matrix are included, there 
 
 Logspace Returns of the Top 5 Principal Compenents grouped as Winners/Losers (and Spread Portfolio)
 ![PCA_returns](PCA_returns.png)
+
+Spread: 0.55 Sharpe
+
+This uses a rolling PCA, fitted to daily (t-lookback_window to t-1), with the PCs recalculated monthly. The lookback window for PCA fitting here is 100 days.
 
 ### Key Takeaways
 
