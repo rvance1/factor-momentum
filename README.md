@@ -10,11 +10,39 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
 
 ### Methodology
 1. Signal Construction 
-  - [x] 't-1' cross-sectional
-  - [x] t-1 to t-12 cross-sectional
-  - [x] t-1 cross-sectional using principal compenents (PCA)
+  
+  Principal Components are extracted from a 100-day rolling window using all of Barras style-factor returns (excluding momentum and reversal). 
+
+  We keep the top 5 PCs with the highest eigen values, as the factor momentum effect collects there. The rest of the PCs do not have a strong momentum effect and only 
+  
+  We then compute the 1-month cross sectional signal for PC returns (monthly frequency):
+
+  $$
+  \text{signal}_{pc,i,t} =
+  \begin{cases}
+  1,  & \text{if } r_{i,t-1} > \mathrm{median}(r_{t-1}) \\
+  0,  & \text{if } r_{i,t-1} = \mathrm{median}(r_{t-1}) \\
+  -1, & \text{if } r_{i,t-1} < \mathrm{median}(r_{t-1})
+  \end{cases}
+  $$
+
+
+
+
  
 2. Backtesting Framework
+
+  **Weights:**
+
+  At each time $t$, the optimal weights are:
+
+  $$
+  w_t^* = \frac{1}{2\lambda} \Sigma_t^{-1} \mu_t
+  $$
+  
+  We set lambda (the risk adversion) to 10. For expected return (mu) we use our estimated alpha, and the covarience matrix is forcasted by Barra. 
+  
+  **Alphas:**
 
   Alphas estimated with:
 
@@ -24,21 +52,15 @@ This project was developed as part of the BYU Silver Fund, one of the nation’s
 
   The residual risk component is computed ex-ante, and we assume a 0.05 information coefficient.
 
-  At each time $t$, the optimal weights are:
-
-  $$
-  w^* = \frac{1}{2\lambda} \Sigma^{-1} \mu
-  $$
-
+  **Constraint**
+  
   We add a leverage constraint:
 
   $$
   \sum_{i=1}^{N} |w_i| \le 1
   $$
-  We use our estimated alpha in place of expected return (mu), and the covarience matrix is forcasted by Barra. 
   
-  We rebalance monthly. Transaction costs are not accounted for in the optimization (next project). 
-
+  We rebalance monthly. Transaction costs are not accounted for.
 
 
 3. Evaluation Metrics
