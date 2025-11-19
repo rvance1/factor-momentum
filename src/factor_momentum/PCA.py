@@ -100,7 +100,6 @@ class RollingPCA:
 
         if window.height == 0:
             raise ValueError(
-                f"No data found in rolling window ending on {state_date}. "
                 f"Expected at least 1 row, got {window.height}"
             )
         
@@ -152,14 +151,41 @@ class RollingPCA:
             pcs.append(
                 self.transform_chunk(date, chunk)
                 .with_columns(
-                    pl.lit(date).alias('date')
+                    pl.lit(date).alias('state')
                 )
             )
         
         return pl.concat(pcs, how="vertical")
 
 
-    def get_factor_weights_from_date(date: dt.date) -> np.ndarray:
+    def inverse_transform_chunk(
+            self, state_date: dt.date, returns_chunk: pl.LazyFrame
+            ) -> pl.DataFrame:
+        
+        if state_date not in self.states:
+            raise ValueError(f"No PCA state stored for date {state_date}")
+        
+        state = self.states[state_date]
+
+        window = (
+            returns_chunk
+            .collect()
+        )
+
+        if window.height == 0:
+            raise ValueError(
+                f"Expected at least 1 row, got {window.height}"
+            )
+        
+        X = window.drop('date').to_numpy()
+        
+        X_scaled = (X - state["mean"]) / state["scale"]
+        PCs = X_scaled @ state["components"].T
+
+        pc_cols = {f"pc{i}": PCs[:, i] for i in range(self.n_components)}
+
+        return window.select("date").with_columns(**pc_cols)
+        
         
         # L = pca_engine.pca_model.components_
         # pc_weights = [1,0,1,-1,-1]

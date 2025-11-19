@@ -14,3 +14,11 @@ build/
 
 # Environment variables
 .env
+
+#Jupyter Notebooks
+.ipynb_checkpoints/
+
+#Others
+tmp/
+logs/
+notebooks/
