@@ -38,13 +38,6 @@ Uses all equities in the Russel 3000 universe.
  
 ### Results
 
-Logspace Decile Returns of the Cross Sectional Signal (No PCA)
-![Decile Plots without PCA](deciles_no_pca.png)
-
-This plot illustrates the **cross-sectional momentum effect** using the **raw factor returns** (before applying PCA).  
-Each month, stocks are sorted into deciles based on their aggregate exposure to the factor signals.  
-
-As shown, when all eigenvectors of the factor return matrix are included, there is no consistent pattern of positive momentum across the higher deciles. The only robust observation is that **stocks with low exposure to any factor signal tend to perform poorly**, suggesting that weak factor participation is broadly associated with underperformance.
 
 Logspace Returns of the Top 5 Principal Compenents grouped as Winners/Losers (and Spread Portfolio)
 
