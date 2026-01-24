@@ -6,7 +6,7 @@ from sf_quant.data.exposures import load_exposures
 from sf_quant.data.assets import load_assets
 from sf_quant.data.factors import load_factors
 
-from .PCA import RollingPCA
+from .PCA import PcaEngine
 from ._constants import FACTORS
 
 # TODO: Docstring
@@ -34,6 +34,8 @@ def _load_monthly_asset_data (
         (np.sqrt(np.pow(pl.col('specific_risk'), 2).mean()))]
         +
         [pl.col(fac).mean() for fac in FACTORS]
+        +
+        [pl.col('date').last()]
     )
     .sort(['barrid', 'month'])
     .collect()
@@ -65,7 +67,7 @@ def _scan_monthly_pc_returns (
         start: dt.date, end: dt.date, n_compenents: int, lookback_window: int
 ) -> pl.LazyFrame:
     
-    pca_engine = RollingPCA(n_components=n_compenents, lookback_window=lookback_window)
+    pca_engine = PcaEngine(n_components=n_compenents, lookback_window=lookback_window)
     
     factor_returns = load_factors(start=start, end=end, factors=FACTORS).lazy()
 
