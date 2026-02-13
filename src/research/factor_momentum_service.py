@@ -3,26 +3,27 @@ import numpy as np
 import polars as pl
 import dataframely as dy
 from typing import TypeAlias
+from enum import StrEnum
 
 from factor_momentum import PcaEngine, FACTORS
 from sf_quant.data import load_factors
 
 class PCReturnsSchema(dy.Schema):
     factor = dy.String()
-    month = dy.Date()
-    ret = dy.Float64()
+    date = dy.Date()
+    ret = dy.Float64(nullable=True)
     lag_ret = dy.Float64(nullable=True)
 
 class PCSignalsSchema(dy.Schema):
     factor = dy.String()
-    month = dy.Date()
+    date = dy.Date()
     ret = dy.Float64()
     lag_ret = dy.Float64(nullable=True)
     rank = dy.UInt32()
     signal = dy.Int32()
 
 class PortReturnsSchema(dy.Schema):
-    month = dy.Date()
+    date = dy.Date()
     median = dy.Float64()
     losers = dy.Float64()
     winners = dy.Float64()
@@ -32,6 +33,14 @@ class PortReturnsSchema(dy.Schema):
 PCReturnsDf: TypeAlias = dy.DataFrame[PCReturnsSchema]
 PCSignalsDf: TypeAlias = dy.DataFrame[PCSignalsSchema]
 PortReturnsDf: TypeAlias = dy.DataFrame[PortReturnsSchema]
+
+class Interval(StrEnum):
+    DAILY = "1d"
+    MONTHLY = "1mo"
+
+class EngineType(StrEnum):
+    ROLLING = "rolling"
+
 
 class FactorMomentumService:
 
@@ -50,7 +59,7 @@ class FactorMomentumService:
             self.rolling_engine = PcaEngine(n_components=n_components, lookback_window=lookback_window)
 
 
-    def __agg_to_monthly_and_lag(self, df: pl.DataFrame) -> pl.DataFrame:
+    def __process_monthly(self, df: pl.DataFrame) -> pl.DataFrame:
         return (df.drop('state').unpivot(index='date', variable_name='factor', value_name='ret').lazy()
         .with_columns(
             pl.col('date').dt.truncate('1mo').alias('mo'),
@@ -64,11 +73,25 @@ class FactorMomentumService:
         .with_columns(
             pl.col('ret').shift(1).over('factor').alias('lag_ret')
         )
+        .rename({"month": "date"})
         .collect()
+        )
+
+
+    def __process_daily(self, df: pl.DataFrame) -> pl.DataFrame:
+        return (df.drop('state').unpivot(
+            index='date', variable_name='factor', value_name='ret'
+        )
+        .with_columns(
+            pl.col("ret").mul(.01).log1p()
+        )
+        .with_columns(
+            pl.col('ret').shift(1).over('factor').alias('lag_ret')
+        )
         )
     
 
-    def get_rolling_pcs(self, n_components: int, lookback_window: int) -> PCReturnsDf:
+    def get_rolling_pcs(self, n_components: int, lookback_window: int, inter: Interval) -> PCReturnsDf:
         """
         Docstring for get_rolling_pcs
 
@@ -83,9 +106,17 @@ class FactorMomentumService:
             raise ValueError("Rolling PCA engine not built. Please call __build_engine with appropriate parameters before calling this method.")
 
         factor_returns = load_factors(self.start, self.end, FACTORS).lazy()
-        pc_rolling_returns = self.rolling_engine.fit_transform_rolling_monthly(factor_returns)
+        if inter == Interval.MONTHLY:
+            pc_rolling_returns = self.rolling_engine.fit_transform_rolling_monthly(factor_returns)
+            pc_rolling_returns = self.__process_monthly(pc_rolling_returns)
+        elif inter == Interval.DAILY:
+            pc_rolling_returns = self.rolling_engine.fit_transform_rolling_daily(factor_returns)
+            pc_rolling_returns = self.__process_daily(pc_rolling_returns)
+        else:
+            raise ValueError(f"Invalid interval {inter}")
 
-        return PCReturnsSchema.validate(self.__agg_to_monthly_and_lag(pc_rolling_returns))
+        print(pc_rolling_returns.collect_schema())
+        return PCReturnsSchema.validate(pc_rolling_returns)
 
 
     def get_expanding_pcs(self, n_components: int) -> PCReturnsDf:
@@ -103,7 +134,7 @@ class FactorMomentumService:
         factor_returns = load_factors(self.start, self.end, FACTORS).lazy()
         pc_rolling_returns = self.expanding_engine.fit_transform_expanding_monthly(self.start, factor_returns)
 
-        return PCReturnsSchema.validate(self.__agg_to_monthly_and_lag(pc_rolling_returns))
+        return PCReturnsSchema.validate(self.__process_monthly(pc_rolling_returns))
 
 
     def build_cross_sectional_signals(self, pc_returns: PCReturnsDf) -> PCSignalsDf:
@@ -116,7 +147,7 @@ class FactorMomentumService:
         :rtype: DataFrame
         """
         signals = (pc_returns.with_columns(
-            pl.col('lag_ret').rank('dense').over('month').alias('rank')
+            pl.col('lag_ret').rank('dense').over('date').alias('rank')
         )
         .with_columns(
             pl.when(pl.col('rank') < 3)
@@ -142,11 +173,11 @@ class FactorMomentumService:
         :rtype: DataFrame
         """
         # This is a placeholder implementation. The actual implementation would depend on the specific portfolio construction methodology you want to use.
-        ports = (signals.group_by(['month', 'signal']).agg(
+        ports = (signals.group_by(['date', 'signal']).agg(
             pl.col('ret').sum()
         )
-        .sort('month')
-        .pivot(on='signal', index='month')
+        .sort('date')
+        .pivot(on='signal', index='date')
         .with_columns(
             (pl.col('1') - pl.col('-1')).alias('ls')
         )
@@ -171,11 +202,11 @@ class FactorMomentumService:
         return ports, signals, pc_returns
 
 
-    def run_rolling_pipeline(self, n_components: int, lookback_window: int) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
+    def run_rolling_pipeline(self, n_components: int, lookback_window: int, interval: Interval) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
         
         self.__build_engine(n_components=n_components, lookback_window=lookback_window)
         
-        pc_returns = self.get_rolling_pcs(n_components, lookback_window)
+        pc_returns = self.get_rolling_pcs(n_components, lookback_window, interval)
         signals = self.build_cross_sectional_signals(pc_returns)
         ports = self.build_portfolios(signals)
 
@@ -209,7 +240,7 @@ class FactorMomentumService:
             if pc > engine.n_components - 1:
                 raise ValueError(f"Requested PC {pc} exceeds the number of components in the engine ({engine.n_components}).")
             
-            return {key: states[key]['components'][pc] for key in states.keys()}
+            return {key: states[key]['components'][pc] for key in states.keys() if states[key]}
         
         
         return {key: states[key]['components'] for key in states.keys()}
@@ -229,9 +260,12 @@ class FactorMomentumService:
         
         return (pl.DataFrame(
             [
-                {"month": k, **{f"{FACTORS[i][8:].lower()}": v[i] for i in range(len(v))}}
+                {"date": k, **{f"{FACTORS[i][8:].lower()}": v[i] for i in range(len(v))}}
                 for k, v in loadings_dict.items()
             ]
         )
-        .sort("month")
+        .sort("date")
         )
+    
+    def overwrite_pc_loadings_by_df(self, df: pl.DataFrame) -> None:
+        pass

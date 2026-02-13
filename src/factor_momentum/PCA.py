@@ -9,7 +9,6 @@ from sklearn.preprocessing import StandardScaler
 
 #TODO: Docstring
 
-
 class PcaEngine:
     def __init__(self, n_components: int, lookback_window: int):
         self.pca_model = PCA(n_components=n_components)
@@ -49,11 +48,13 @@ class PcaEngine:
 
     #TODO: handle not enough lookback data
     def fit_lookback_for_date(
-            self, date: dt.date, returns: pl.LazyFrame
+            self, date: dt.date, returns: pl.LazyFrame,
             ) -> None:
         """
         Fit the PCA model for a specific reference date using a 
         lookback window of past returns.
+
+        If anchor_pc is provided, sign identification constraint is applied using the anchor_pc
         """
         
         window = (
@@ -67,6 +68,13 @@ class PcaEngine:
         )
 
         X = self.scaler.fit_transform(window)
+
+        if X.shape[0] < self.n_components:
+            print(f"Warning: Not enough data to fit PCA for date {date}. Needed at least {self.n_components} rows, got {X.shape[0]}")
+            
+            self.states[date] = None
+            return
+
         self.pca_model.fit(X)
 
         self.states[date] = {
@@ -132,6 +140,12 @@ class PcaEngine:
             )
         
         X = window.drop('date').to_numpy()
+        
+        if not state:
+            pc_cols = {f"pc{i}": pl.Series(name=f"pc{i}", values=[None] * X.shape[0], dtype=pl.Float64)
+                       for i in range(self.n_components)}
+            
+            return window.select("date").with_columns(**pc_cols)
         
         X_scaled = (X - state["mean"]) / state["scale"]
         PCs = X_scaled @ state["components"].T
@@ -229,6 +243,40 @@ class PcaEngine:
                 )
             
             return pl.concat(pcs, how="vertical")
+
+
+    def fit_transform_rolling_daily(
+            self, returns: pl.LazyFrame
+    ) -> pl.DataFrame:
+        
+        dates = (
+            returns
+            .select(pl.col('date').unique().sort())
+            .collect()
+        )['date'].to_list()
+
+        print("Fitting rolling PCA...")
+        for date in tqdm(dates[1:], desc="Rolling PCA"):
+            self.fit_lookback_for_date(date, returns)
+        
+        print("Transforming rolling PCA...")
+        pcs = []
+        for date in tqdm(dates[1:], desc="Rolling PCA"):            
+            
+            chunk = (
+                returns
+                .filter(pl.col('date').eq(date))
+                .sort('date')
+            )
+            
+            pcs.append(
+                self.transform_chunk(date, chunk)
+                .with_columns(
+                    pl.lit(date).alias('state')
+                )
+            )
+        
+        return pl.concat(pcs, how="vertical")
 
 
     def inverse_transform_chunk(
