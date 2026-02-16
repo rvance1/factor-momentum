@@ -7,8 +7,14 @@ load_dotenv()
 
 TMP = os.getenv("TMP")
 
+DROPPED_FACTORS = [
+    "USSLOWL_RESVOL",
+    "USSLOWL_MOMENTUM",
+    "USSLOWL_BETA",
+]
+
 FACTORS = [fac for fac in get_factor_names('style')
-            if fac not in ['USSLOWL_MOMENTUM','USSLOWL_LTREVRSL']]
+            if fac not in DROPPED_FACTORS]
 
 TYPES = [
     "1m cross-section",
