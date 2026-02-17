@@ -111,13 +111,13 @@ class FactorMomentumService:
             raise ValueError("Rolling PCA engine not built. Please call __build_engine with appropriate parameters before calling this method.")
 
         
-        factor_returns_raw = load_factors(self.start, self.end, FACTORS)
+        factor_returns = load_factors(self.start, self.end, FACTORS)
 
         if filter_earnings_season:
             earnings_flags = get_earnings_season_markers(self.start, self.end)
-            factor_returns = factor_returns_raw.join(earnings_flags, on='date', how='left').filter(pl.col('is_earnings_season').eq(0)).drop('is_earnings_season').sort('date').lazy()
-        else:
-            factor_returns = factor_returns_raw.sort('date').lazy()
+            factor_returns = factor_returns.join(earnings_flags, on='date', how='left').filter(pl.col('is_earnings_season').eq(0)).drop('is_earnings_season').sort('date').lazy()
+        
+        factor_returns = factor_returns.sort('date').lazy()
         
         
         if inter == Interval.MONTHLY:
@@ -133,7 +133,7 @@ class FactorMomentumService:
         return PCReturnsSchema.validate(pc_rolling_returns)
 
 
-    def get_expanding_pcs(self, n_components: int) -> PCReturnsDf:
+    def get_expanding_pcs(self, n_components: int, filter_earnings_season: bool) -> PCReturnsDf:
         """
         Docstring for get_expanding_pcs
 
@@ -145,7 +145,16 @@ class FactorMomentumService:
         if self.expanding_engine is None:
             raise ValueError("Expanding PCA engine not built. Please call __build_engine with appropriate parameters before calling this method.")
 
-        factor_returns = load_factors(self.start, self.end, FACTORS).lazy()
+
+        factor_returns = load_factors(self.start, self.end, FACTORS)
+
+        if filter_earnings_season:
+            earnings_flags = get_earnings_season_markers(self.start, self.end)
+            factor_returns = factor_returns.join(earnings_flags, on='date', how='left').filter(pl.col('is_earnings_season').eq(0)).drop('is_earnings_season').sort('date').lazy()
+        
+        factor_returns = factor_returns.sort('date').lazy()
+
+
         pc_rolling_returns = self.expanding_engine.fit_transform_expanding_monthly(self.start, factor_returns)
 
         return PCReturnsSchema.validate(self.__process_monthly(pc_rolling_returns))
@@ -205,11 +214,11 @@ class FactorMomentumService:
         return PortReturnsSchema.validate(ports)
     
 
-    def run_expanding_pipeline(self, n_components: int) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
+    def run_expanding_pipeline(self, n_components: int, filter_earnings_season: bool = False) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
         
         self.__build_engine(n_components=n_components, lookback_window=None)
 
-        pc_returns = self.get_expanding_pcs(n_components)
+        pc_returns = self.get_expanding_pcs(n_components, filter_earnings_season)
         signals = self.build_cross_sectional_signals(pc_returns)
         ports = self.build_portfolios(signals)
 
