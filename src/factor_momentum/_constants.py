@@ -14,7 +14,8 @@ DROPPED_FACTORS = [
 ]
 
 FACTORS = [fac for fac in get_factor_names('style')
-            if fac not in DROPPED_FACTORS]
+            #if fac not in DROPPED_FACTORS
+            ]
 
 TYPES = [
     "1m cross-section",

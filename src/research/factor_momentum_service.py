@@ -8,6 +8,8 @@ from enum import StrEnum
 from factor_momentum import PcaEngine, FACTORS
 from sf_quant.data import load_factors
 
+from research.seasons import get_earnings_season_markers
+
 class PCReturnsSchema(dy.Schema):
     factor = dy.String()
     date = dy.Date()
@@ -29,7 +31,6 @@ class PortReturnsSchema(dy.Schema):
     winners = dy.Float64()
     ls = dy.Float64()
     
-
 PCReturnsDf: TypeAlias = dy.DataFrame[PCReturnsSchema]
 PCSignalsDf: TypeAlias = dy.DataFrame[PCSignalsSchema]
 PortReturnsDf: TypeAlias = dy.DataFrame[PortReturnsSchema]
@@ -105,6 +106,7 @@ class FactorMomentumService:
         if self.rolling_engine is None:
             raise ValueError("Rolling PCA engine not built. Please call __build_engine with appropriate parameters before calling this method.")
 
+        
         factor_returns = load_factors(self.start, self.end, FACTORS).lazy()
         if inter == Interval.MONTHLY:
             pc_rolling_returns = self.rolling_engine.fit_transform_rolling_monthly(factor_returns)
@@ -267,5 +269,6 @@ class FactorMomentumService:
         .sort("date")
         )
     
+
     def overwrite_pc_loadings_by_df(self, df: pl.DataFrame) -> None:
         pass
