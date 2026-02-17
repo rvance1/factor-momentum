@@ -66,7 +66,7 @@ class FactorMomentumService:
             pl.col('date').dt.truncate('1mo').alias('mo'),
         )
         .group_by(['factor', 'mo']).agg(
-            pl.col('date').first().alias('month'),
+            pl.col('date').min().alias('month'),
             pl.col('ret').mul(.01).log1p().sum().alias('ret'),
         )
         .drop('mo')
@@ -92,7 +92,7 @@ class FactorMomentumService:
         )
     
 
-    def get_rolling_pcs(self, n_components: int, lookback_window: int, inter: Interval) -> PCReturnsDf:
+    def get_rolling_pcs(self, n_components: int, lookback_window: int, inter: Interval, filter_earnings_season: bool) -> PCReturnsDf:
         """
         Docstring for get_rolling_pcs
 
@@ -100,6 +100,10 @@ class FactorMomentumService:
         :type n_components: int
         :param lookback_window: Defines the number of past observations to consider when computing the principal components for each date.
         :type lookback_window: int
+        :param inter: Defines the frequency of the output data.
+        :type inter: Interval
+        :param filter_earnings_season: Defines whether to filter out earnings season dates.
+        :type filter_earnings_season: bool
         :return: A DataFrame containing the rolling principal components for each date, aggregated to monthly frequency and lagged by one month.
         :rtype: DataFrame
         """
@@ -107,7 +111,15 @@ class FactorMomentumService:
             raise ValueError("Rolling PCA engine not built. Please call __build_engine with appropriate parameters before calling this method.")
 
         
-        factor_returns = load_factors(self.start, self.end, FACTORS).lazy()
+        factor_returns_raw = load_factors(self.start, self.end, FACTORS)
+
+        if filter_earnings_season:
+            earnings_flags = get_earnings_season_markers(self.start, self.end)
+            factor_returns = factor_returns_raw.join(earnings_flags, on='date', how='left').filter(pl.col('is_earnings_season').eq(0)).drop('is_earnings_season').sort('date').lazy()
+        else:
+            factor_returns = factor_returns_raw.sort('date').lazy()
+        
+        
         if inter == Interval.MONTHLY:
             pc_rolling_returns = self.rolling_engine.fit_transform_rolling_monthly(factor_returns)
             pc_rolling_returns = self.__process_monthly(pc_rolling_returns)
@@ -204,11 +216,11 @@ class FactorMomentumService:
         return ports, signals, pc_returns
 
 
-    def run_rolling_pipeline(self, n_components: int, lookback_window: int, interval: Interval) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
+    def run_rolling_pipeline(self, n_components: int, lookback_window: int, interval: Interval, filter_earnings_season: bool = False) -> tuple[PortReturnsDf, PCSignalsDf, PCReturnsDf]:
         
         self.__build_engine(n_components=n_components, lookback_window=lookback_window)
         
-        pc_returns = self.get_rolling_pcs(n_components, lookback_window, interval)
+        pc_returns = self.get_rolling_pcs(n_components, lookback_window, interval, filter_earnings_season)
         signals = self.build_cross_sectional_signals(pc_returns)
         ports = self.build_portfolios(signals)
 
